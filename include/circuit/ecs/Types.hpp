@@ -10,6 +10,11 @@ using ComponentId = std::uint32_t;
 constexpr NodeId INVALID_NODE = UINT32_MAX;
 constexpr ComponentId INVALID_COMPONENT = UINT32_MAX;
 
+enum class Terminal : std::uint8_t {
+    Anode,
+    Cathode
+};
+
 enum class ComponentType : std::uint8_t {
     Cell,
     Resistor,

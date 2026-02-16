@@ -6,6 +6,7 @@
 namespace circuit::ecs {
 
 struct Node {
+
     NodeId id = INVALID_NODE;
 
     // All components connected to this node

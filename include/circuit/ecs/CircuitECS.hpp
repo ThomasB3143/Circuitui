@@ -3,6 +3,7 @@
 #include <vector>
 #include "Node.hpp"
 #include "Component.hpp"
+#include "Types.hpp"
 
 namespace circuit::ecs {
 
@@ -10,32 +11,26 @@ class CircuitECS {
 public:
     CircuitECS() = default;
 
-    // Node creation
-    NodeId create_node();
-
     // Component creation
-    ComponentId create_resistor(NodeId a, NodeId b, double resistance);
-    ComponentId create_capacitor(NodeId a, NodeId b, double capacitance);
-    ComponentId create_cell(NodeId a, NodeId b, double emf);
+    ComponentId create_component(ComponentType type, double property);
+
+    // Component manipulation
+    void connect_components(ComponentId cId1, ComponentId cId2,
+                            Terminal t1, Terminal t2);
+    void sever_terminal(ComponentId compID, Terminal term);
 
     // Accessors
-    const Node& get_node(NodeId id) const;
-    Node& get_node(NodeId id);
-
-    const ElectricalComponent& get_component(ComponentId id) const;
     ElectricalComponent& get_component(ComponentId id);
 
-    const std::vector<Node>& nodes() const noexcept;
-    const std::vector<ElectricalComponent>& components() const noexcept;
-
 private:
-    ComponentId create_component(ComponentType type,
-        NodeId a,
-        NodeId b,
-        double resistance,
-        double capacitance,
-        double emf
-    );
+
+    // Node manipulation
+    NodeId get_node(ComponentId compID, Terminal term);
+    Node& get_node(NodeId cId1);
+    NodeId create_node(ComponentId c1, ComponentId c2,
+                            Terminal t1, Terminal t2);
+    void connect_node(ComponentId comp, Terminal term, NodeId node);
+    void merge_nodes(NodeId node1, NodeId node2);
 
     std::vector<Node> nodes_;
     std::vector<ElectricalComponent> components_;
