@@ -1,21 +1,58 @@
 #include "circuit/ecs/CircuitECS.hpp"
+#include "circuit/ecs/Component.hpp"
 #include "circuit/ecs/Node.hpp"
 #include "circuit/ecs/Types.hpp"
+#include <stdexcept>
 
 namespace circuit::ecs {
 
-// Component creation
+// Component creation and deletion
 ComponentId CircuitECS::create_component(ComponentType type, double property) {
 
-    ComponentId id = static_cast<ComponentId>(components_.size());
+    ComponentId id;
 
-    components_.push_back(ElectricalComponent{
+    // Check for tombstones
+    if (!free_componentIds_.empty()) {
+        // Tombstone exists!
+        id = free_componentIds_.back();
+        free_componentIds_.pop_back();
+    } else {
+        // No tombstones
+        // ID is the size of components_ (just appended to the end)
+        id = static_cast<ComponentId>(components_.size());
+        components_.push_back(ElectricalComponent{});
+    }
+
+    components_[id] = ElectricalComponent{
         .id = id,
         .type = type,
-        .property = property
-    });
+        .property = property,
+        .alive = true
+    };
 
     return id;
+}
+
+void CircuitECS::delete_component(ComponentId id) {
+    
+    // Check if the component is not alive (already deleted)
+    ElectricalComponent& to_delete = get_component(id);
+    if (!to_delete.alive) {
+        throw std::invalid_argument("Cannot delete a dead component");
+    } else {
+        // Mark as not alive
+        to_delete.alive = false;
+
+        // Sever terminals
+        if (to_delete.anode != INVALID_NODE) {
+            sever_terminal(id, Terminal::Anode);
+        }
+        if (to_delete.cathode != INVALID_NODE) {
+            sever_terminal(id, Terminal::Cathode);
+        }
+
+        free_componentIds_.push_back(id);
+    }
 }
 
 // Component manipulation
@@ -62,26 +99,30 @@ ElectricalComponent& CircuitECS::get_component(ComponentId id) {
     return components_.at(id);
 }
 
-// Node manipulation
-
-NodeId CircuitECS::get_node(ComponentId compID, Terminal term) {
-    ElectricalComponent& comp = get_component(compID);
-    return (term == Terminal::Anode) ? comp.anode : comp.cathode;
-}
-
-Node& CircuitECS::get_node(NodeId id) {
-    return nodes_.at(id);
-}
+// Node creation and deletion
 
 NodeId CircuitECS::create_node(ComponentId c1, ComponentId c2,
                             Terminal t1, Terminal t2) {
 
-    // Create new node
-    NodeId id = static_cast<NodeId>(nodes_.size());
-    nodes_.push_back(Node{
+    NodeId id;
+
+    // Check for tombstones
+    if (!free_nodeIds_.empty()) {
+        // Tombstone exists!
+        id = free_nodeIds_.back();
+        free_nodeIds_.pop_back();
+    } else {
+        // No tombstones
+        // ID is the size of nodes_ (just appended to the end)
+        id = static_cast<ComponentId>(nodes_.size());
+        nodes_.push_back(Node{});
+    }
+
+    nodes_[id] = Node{
         .id = id,
-        .connected_components = {c1, c2}
-    });
+        .connected_components = {c1, c2},
+        .alive = true
+    };
 
     // Connect components to node
     ElectricalComponent& comp1 = get_component(c1);
@@ -94,6 +135,23 @@ NodeId CircuitECS::create_node(ComponentId c1, ComponentId c2,
     return id;
 }
 
+void CircuitECS::delete_node(NodeId id) {
+    // Check if the node is not alive (already deleted)
+    // Check if node has connected components
+    Node& to_delete = get_node(id);
+    if (!to_delete.alive) {
+        throw std::invalid_argument("Cannot delete a dead node");
+    } else if (!to_delete.connected_components.empty()) {
+        throw std::invalid_argument("Cannot delete nodes with connected components");
+    } else {
+        // Mark as not alive
+        to_delete.alive = false;
+        free_nodeIds_.push_back(id);
+    }
+}
+
+// Node manipulation
+
 void connect_node(ComponentId comp, Terminal term, NodeId node) {
     
 }
@@ -101,6 +159,17 @@ void connect_node(ComponentId comp, Terminal term, NodeId node) {
 void CircuitECS::merge_nodes(NodeId node1, NodeId node2) {
     // TODO
     return;
+}
+
+// Node Accessors
+
+NodeId CircuitECS::get_node(ComponentId compID, Terminal term) {
+    ElectricalComponent& comp = get_component(compID);
+    return (term == Terminal::Anode) ? comp.anode : comp.cathode;
+}
+
+Node& CircuitECS::get_node(NodeId id) {
+    return nodes_.at(id);
 }
 
 } // namespace circuit::ecs

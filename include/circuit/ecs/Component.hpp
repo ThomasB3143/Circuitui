@@ -18,6 +18,9 @@ struct ElectricalComponent {
 
     // Property (used for resistance, emf, capacitance depending on type)
     double property = 0.0;
+
+    // Used for tombstone-based deletion
+    bool alive = true;
 };
 
 } // namespace circuit::ecs

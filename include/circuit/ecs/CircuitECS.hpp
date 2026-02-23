@@ -11,29 +11,39 @@ class CircuitECS {
 public:
     CircuitECS() = default;
 
-    // Component creation
+    // Component creation and deletion
     ComponentId create_component(ComponentType type, double property);
+    void delete_component(ComponentId id);
 
     // Component manipulation
     void connect_components(ComponentId cId1, ComponentId cId2,
                             Terminal t1, Terminal t2);
     void sever_terminal(ComponentId compID, Terminal term);
 
-    // Accessors
+    // Component Accessors
     ElectricalComponent& get_component(ComponentId id);
 
 private:
 
-    // Node manipulation
-    NodeId get_node(ComponentId compID, Terminal term);
-    Node& get_node(NodeId cId1);
+    // Node creation and deletion
     NodeId create_node(ComponentId c1, ComponentId c2,
                             Terminal t1, Terminal t2);
+    void delete_node(NodeId id);
+
+
+    // Node manipulation    
     void connect_node(ComponentId comp, Terminal term, NodeId node);
     void merge_nodes(NodeId node1, NodeId node2);
 
-    std::vector<Node> nodes_;
-    std::vector<ElectricalComponent> components_;
+    // Node Accessors
+    NodeId get_node(ComponentId compID, Terminal term);
+    Node& get_node(NodeId cId1);
+
+    std::vector<Node> nodes_; // list of nodes
+    std::vector<NodeId> free_nodeIds_; // list of free node Ids (previously deleted)
+
+    std::vector<ElectricalComponent> components_; // list of components
+    std::vector<ComponentId> free_componentIds_; // list of free component Ids (previously deleted)
 };
 
 } // namespace circuit::ecs
