@@ -2,7 +2,10 @@
 #include "circuit/ecs/Component.hpp"
 #include "circuit/ecs/Node.hpp"
 #include "circuit/ecs/Types.hpp"
+#include <iterator>
 #include <stdexcept>
+#include <utility>
+#include <vector>
 
 namespace circuit::ecs {
 
@@ -82,39 +85,45 @@ void CircuitECS::connect_components(ComponentId cId1, ComponentId cId2,
 		connect_node(cId2, t2, node1);
 	}
 }
+
 void CircuitECS::sever_terminal(ComponentId compID, Terminal term) {
-	// TODO
-	// Retrieve component
-	ElectricalComponent &comp = get_component(compID);
+    ElectricalComponent& comp = get_component(compID);
 
-	// Retrieve node id
-	NodeId *nodeID = (term == Terminal::Anode) ? &comp.anode : &comp.cathode;
+    // Get pointer to the terminal's node
+    NodeId* termNode =
+        (term == Terminal::Anode) ? &comp.anode : &comp.cathode;
 
-	// Check if terminal actually has a node
-	if (*nodeID == INVALID_NODE) {
-		throw std::invalid_argument("Cannot sever a terminal with no node");
-	}
+    // Nothing to sever
+    if (*termNode == INVALID_NODE)
+        return;
 
-	// Retrieve node
-	Node &node = get_node(*nodeID);
+    // Preserve node ID before modifying component
+    NodeId nodeId = *termNode;
+    Node& node = get_node(nodeId);
 
-	// Remove nodeID from component terminal
-	*nodeID = INVALID_NODE;
-	// Remove component from node's component list
-	std::erase(node.connected_components, compID);
+    // Disconnect component from node
+    *termNode = INVALID_NODE;
+    std::erase(node.connected_components, compID);
 
-	// Check number of connected components post-sever:
-	// > 1	 Just remove component from component list
-	// <= 1 	Delete node (they require 2 connected components to exist)
-	if (node.connected_components.size() <= 1) {
-		ComponentId last_compID = node.connected_components.front();
-		ElectricalComponent &last_comp = get_component(last_compID);
-		NodeId *last_term =
-		(last_comp.anode == *nodeID) ? &last_comp.anode : &last_comp.cathode;
-		// YOU WERE HERE, REMOVE THE NODE FROM THE LAST COMPONENT AND DELETE THE
-		// NODE
-	}
-	return;
+    // Node collapse logic
+    if (node.connected_components.size() == 1) {
+        // Only one component left -> node is invalid
+        ComponentId lastCompId = node.connected_components.front();
+        ElectricalComponent& lastComp = get_component(lastCompId);
+
+        // Remove node from remaining component
+        if (lastComp.anode == nodeId)
+            lastComp.anode = INVALID_NODE;
+        if (lastComp.cathode == nodeId)
+            lastComp.cathode = INVALID_NODE;
+
+        node.connected_components.clear();
+        delete_node(nodeId);
+    }
+    else if (node.connected_components.empty()) {
+        // Fully disconnected node
+        delete_node(nodeId);
+    }
 }
 
 // Accessors
@@ -172,10 +181,83 @@ void CircuitECS::delete_node(NodeId id) {
 
 // Node manipulation
 
-void connect_node(ComponentId comp, Terminal term, NodeId node) {}
+void CircuitECS::connect_node(ComponentId compID, Terminal term, NodeId nodeID) {
 
-void CircuitECS::merge_nodes(NodeId node1, NodeId node2) {
+	// Get component from comp
+	ElectricalComponent& component = get_component(compID);
+
+	// Get node from node
+	Node& node_to_connect = get_node(nodeID);
+
+	// Get pointer to node at term of comp
+	NodeId* node_at_term = 
+        (term == Terminal::Anode) ? &component.anode : &component.cathode;
+	
+	// Check if terminal is already connected
+	if (*node_at_term != INVALID_NODE) {
+		throw std::invalid_argument("Cannot connect a pre-connected terminal to a node");
+	}
+
+	// Set terminal value to node ID
+	*node_at_term = nodeID;
+
+	// Push component ID onto node's connected list
+	node_to_connect.connected_components.push_back(compID);
+
+	return;
+}
+
+void CircuitECS::merge_nodes(NodeId nodeID1, NodeId nodeID2) {
+
+	// Check for merging of same node
+	if (nodeID1 == nodeID2) {
+		throw std::invalid_argument("Cannot merge a node with itself");
+	}
+
+	// Get nodes, connected_components lists and size
+	// Start by assuming node1 is to grow and node2 is to merge
+	NodeId growId = nodeID1;
+	NodeId mergeId = nodeID2;
+
+	Node* to_grow = &get_node(nodeID1);
+	Node* to_merge = &get_node(nodeID2);
+
+	std::vector<ComponentId>* grow_list = &to_grow->connected_components;
+	std::vector<ComponentId>* merge_list = &to_merge->connected_components;
+
+	size_t grow_size = grow_list->size();
+	size_t merge_size = merge_list->size();
+
+	if (grow_size < merge_size) {
+		// Node1 has less components
+		// Swap merge and grow nodes
+		std::swap(growId, mergeId);
+		std::swap(to_grow, to_merge);
+		std::swap(grow_list, merge_list);
+		std::swap(grow_size, merge_size);
+	}
+
 	// TODO
+	// Change all instances of mergeId in components to growId
+	for (const auto& compId : *merge_list) {
+		ElectricalComponent& comp = get_component(compId);
+
+		if (comp.anode == mergeId) comp.anode = growId;
+		else if (comp.cathode == mergeId) comp.cathode = growId;
+		else throw std::logic_error("Inconsistent component terminals and node lists");
+
+	}
+
+	// Transfer all components from merge_list to grow_list
+	grow_list->reserve(grow_size + merge_size);
+	grow_list->insert(grow_list->end(), 
+		std::make_move_iterator(merge_list->begin()),
+		std::make_move_iterator(merge_list->end()));
+
+	// Delete merge_list
+	merge_list->clear();
+	delete_node(mergeId);
+
 	return;
 }
 
@@ -186,6 +268,8 @@ NodeId CircuitECS::get_node(ComponentId compID, Terminal term) {
 	return (term == Terminal::Anode) ? comp.anode : comp.cathode;
 }
 
-Node &CircuitECS::get_node(NodeId id) { return nodes_.at(id); }
+Node &CircuitECS::get_node(NodeId id) {
+	return nodes_.at(id);
+}
 
 } // namespace circuit::ecs

@@ -32,8 +32,8 @@ private:
 
 
     // Node manipulation    
-    void connect_node(ComponentId comp, Terminal term, NodeId node);
-    void merge_nodes(NodeId node1, NodeId node2);
+    void connect_node(ComponentId compID, Terminal term, NodeId nodeID);
+    void merge_nodes(NodeId nodeID1, NodeId nodeID2);
 
     // Node Accessors
     NodeId get_node(ComponentId compID, Terminal term);
