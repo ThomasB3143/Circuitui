@@ -132,6 +132,33 @@ ElectricalComponent &CircuitECS::get_component(ComponentId id) {
 	return components_.at(id);
 }
 
+// Snapshot accessors
+std::vector<ElectricalComponent> CircuitECS::get_alive_components() {
+
+	std::vector<ElectricalComponent> alive;
+
+	alive.reserve(components_.size() - free_componentIds_.size());
+
+	// Iterate through components_ and remove any index in free_componentIds_
+	for (const auto comp : components_) {
+		if (comp.alive) alive.push_back(comp);
+	}
+	return alive;
+}
+
+std::vector<Node> CircuitECS::get_alive_nodes() {
+
+	std::vector<Node> alive;
+
+	alive.reserve(nodes_.size() - free_nodeIds_.size());
+
+	// Iterate through components_ and remove any index in free_componentIds_
+	for (const auto node : nodes_) {
+		if (node.alive) alive.push_back(node);
+	}
+	return alive;
+}
+
 // Node creation and deletion
 
 NodeId CircuitECS::create_node(ComponentId c1, ComponentId c2, Terminal t1,

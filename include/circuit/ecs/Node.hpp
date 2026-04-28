@@ -9,6 +9,8 @@ struct Node {
 
     NodeId id = INVALID_NODE;
 
+    bool ground = false;
+
     // All components connected to this node
     std::vector<ComponentId> connected_components;
 

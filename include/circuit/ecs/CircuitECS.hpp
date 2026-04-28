@@ -23,6 +23,10 @@ public:
     // Component Accessors
     ElectricalComponent& get_component(ComponentId id);
 
+    // Snapshot accessors
+    std::vector<ElectricalComponent> get_alive_components();
+    std::vector<Node> get_alive_nodes();
+
 private:
 
     // Node creation and deletion
@@ -44,6 +48,7 @@ private:
 
     std::vector<ElectricalComponent> components_; // list of components
     std::vector<ComponentId> free_componentIds_; // list of free component Ids (previously deleted)
+
 };
 
 } // namespace circuit::ecs

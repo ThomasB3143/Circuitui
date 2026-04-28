@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <stdexcept>
+#include <vector>
 #include "circuit/ecs/CircuitECS.hpp"
 #include "circuit/ecs/Component.hpp"
 #include "circuit/ecs/Types.hpp"
@@ -230,4 +231,25 @@ TEST(CircuitECS, DeleteComponentSeversConnections) {
 
     EXPECT_FALSE(compA.alive);
     EXPECT_EQ(compB.cathode, INVALID_NODE);
+}
+
+TEST(CircuitECS, TestAliveAccessors) {
+    CircuitECS ecs;
+
+    ComponentId a = ecs.create_component(ComponentType::Cell, 10);
+    ComponentId b = ecs.create_component(ComponentType::Resistor, 10);
+    ComponentId c = ecs.create_component(ComponentType::Capacitor, 10);
+
+    ecs.connect_components(a, b, Terminal::Anode, Terminal::Anode);
+    ecs.connect_components(c, a, Terminal::Anode, Terminal::Anode);
+
+    ecs.delete_component(a);
+    ecs.delete_component(b);
+
+    std::vector<ElectricalComponent> alive_comp = ecs.get_alive_components();
+    std::vector<Node> alive_node = ecs.get_alive_nodes();
+
+    EXPECT_EQ(alive_comp.size(), 1);
+    EXPECT_EQ(alive_node.size(), 0);
+    EXPECT_EQ(alive_comp[0].id, 2);
 }
