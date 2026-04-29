@@ -3,14 +3,14 @@
 
 namespace circuit::snapshot {
 
-enum class ComponentType : std::uint8_t {
+enum class SnapComponentType : std::uint8_t {
     Cell = 0,
     Resistor = 1,
     Capacitor = 2
 };
 
 struct Component {
-    ComponentType type;
+    SnapComponentType type;
 
     double voltage;
     double current;

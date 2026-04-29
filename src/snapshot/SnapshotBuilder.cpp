@@ -34,13 +34,13 @@ Snapshot SnapshotBuilder::build_snapshot(ecs::CircuitECS& ecs) {
         // Get component type
         switch (comp.type) {
             case ecs::ComponentType::Cell: 
-                c.type = ComponentType::Cell;
+                c.type = SnapComponentType::Cell;
                 break;
             case ecs::ComponentType::Resistor:
-                c.type = ComponentType::Resistor;
+                c.type = SnapComponentType::Resistor;
                 break;
             case ecs::ComponentType::Capacitor:
-                c.type = ComponentType::Capacitor;
+                c.type = SnapComponentType::Capacitor;
                 break;
             default:
                 throw std::runtime_error("Unknown component type");
