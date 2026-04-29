@@ -1,0 +1,7 @@
+[package]
+name = "solver"
+version = "0.1.0"
+
+[lib]
+crate-type = ["staticlib"]
+path = "lib.rs"

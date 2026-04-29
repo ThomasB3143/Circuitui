@@ -1,17 +1,19 @@
 use crate::ffi::Snapshot;
 use crate::snapshot::CircuitData;
-use crate::mna::build_system;
+// use crate::mna::build_system;
 
 pub struct Solution {
     pub voltages: Vec<f64>,
 }
 
-pub fn solve_mna(snapshot: Snapshot) -> Solution {
+/*#[no_mangle]
+pub extern "C" fn solve_mna(snapshot: Snapshot) -> Solution {
     let data = unsafe { CircuitData::from_snapshot(snapshot) };
 
-    let (g, b) = build_system(&data);
+    Solution { 1 }
+}*/
 
-    let voltages = gaussian_elimination(g, b);
-
-    Solution { voltages }
+#[no_mangle]
+pub extern "C" fn example() {
+    println!("Hello!");
 }

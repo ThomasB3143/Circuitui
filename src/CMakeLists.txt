@@ -9,3 +9,4 @@ target_include_directories(circuit
 
 add_subdirectory(ecs)
 add_subdirectory(snapshot)
+add_subdirectory(solver)

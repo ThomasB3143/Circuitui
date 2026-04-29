@@ -1,12 +1,8 @@
 #include <cassert>
 #include <gtest/gtest.h>
-#include <stdexcept>
-#include <vector>
 #include "circuit/ecs/CircuitECS.hpp"
-#include "circuit/ecs/Component.hpp"
 #include "circuit/ecs/Types.hpp"
 #include "circuit/snapshot/SnapComponent.hpp"
-#include "circuit/snapshot/SnapNode.hpp"
 #include "circuit/snapshot/Snapshot.hpp"
 #include "circuit/snapshot/SnapshotBuilder.hpp"
 

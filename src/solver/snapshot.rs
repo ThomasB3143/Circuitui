@@ -6,7 +6,7 @@ pub struct CircuitData {
     pub node_count: usize,
 }
 
-impl CircuitData {
+/*impl CircuitData {
     pub unsafe fn from_snapshot(snapshot: Snapshot) -> Self {
         let comps = slice::from_raw_parts(
             snapshot.components,
@@ -18,4 +18,4 @@ impl CircuitData {
             node_count: snapshot.node_count as usize,
         }
     }
-}
+}*/
