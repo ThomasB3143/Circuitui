@@ -2,16 +2,24 @@ pub mod ffi;
 
 use ffi::{CircuitData, Snapshot, Solution};
 use std::slice;
+extern crate nalgebra;
 extern crate queues;
+use nalgebra::DMatrix;
 use queues::*;
-
 #[no_mangle]
 pub extern "C" fn solve_mna(snap: Snapshot) -> Solution {
     // Convert to CircuitData
     let circuit = circuitdata_from_snapshot(snap);
 
-    //
-    let ground_mask = ground_nodes(circuit);
+    // Ground one node per disconnected subgraph
+    let ground_mask = ground_nodes(&circuit);
+
+    // Form a vector of all node indices and filter out the grounded
+    let ungrounded: Vec<usize> = (0..circuit.node_count)
+        .zip(&ground_mask)
+        .filter(|(_, &m)| !&m)
+        .map(|(x, _)| x)
+        .collect();
 
     // MOCK RETURN
     let mut voltage = 1.0;
@@ -34,7 +42,7 @@ fn circuitdata_from_snapshot(snapshot: Snapshot) -> CircuitData {
     }
 }
 
-fn ground_nodes(circuit: CircuitData) -> Vec<bool> {
+fn ground_nodes(circuit: &CircuitData) -> Vec<bool> {
     let mut visited = vec![false; circuit.node_count];
     let mut grounded = vec![false; circuit.node_count];
 
@@ -44,7 +52,6 @@ fn ground_nodes(circuit: CircuitData) -> Vec<bool> {
         grounded[bfs_queue.peek().unwrap()] = true;
         while let Ok(current_node) = bfs_queue.remove() {
             visited[current_node] = true;
-            println!("CURRENT NODE: {}", current_node);
 
             // Go through every component where the anode or cathode is *current_node*
             for comp in circuit
@@ -67,8 +74,15 @@ fn ground_nodes(circuit: CircuitData) -> Vec<bool> {
             }
         }
     }
-
     grounded
+}
+
+fn compute_a_matrix(circuit: &CircuitData, ungrounded: &Vec<usize>) -> DMatrix<f64> {
+    let matrix = DMatrix::zeros(ungrounded.len(), ungrounded.len());
+    for i in 0..ungrounded.len() {
+        for j in (i + 1)..ungrounded.len() {}
+    }
+    matrix
 }
 
 // =============================
@@ -186,7 +200,7 @@ mod tests {
     fn grounding_works() {
         let test_snapshot = make_disconnected_snapshot();
         let circuit_data = circuitdata_from_snapshot(test_snapshot);
-        let grounded_mask = ground_nodes(circuit_data);
+        let grounded_mask = ground_nodes(&circuit_data);
         assert_eq!(grounded_mask, vec![true, false, true, false]);
     }
 

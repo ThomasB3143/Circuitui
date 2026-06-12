@@ -8,3 +8,4 @@ path = "lib.rs"
 
 [dependencies]
 queues = "1.0.2"
+nalgebra = "0.34"
