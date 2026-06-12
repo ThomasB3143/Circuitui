@@ -31,6 +31,7 @@ target_link_libraries(Snapshot_test
 target_link_libraries(Solver_test
     PRIVATE
         circuit
+        solver
         GTest::gtest
         GTest::gtest_main    
 )

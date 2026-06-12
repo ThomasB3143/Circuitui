@@ -5,3 +5,6 @@ version = "0.1.0"
 [lib]
 crate-type = ["staticlib"]
 path = "lib.rs"
+
+[dependencies]
+queues = "1.0.2"

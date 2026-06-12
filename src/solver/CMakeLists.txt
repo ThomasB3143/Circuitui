@@ -8,6 +8,6 @@ target_sources(circuit
 )
 
 target_link_libraries(circuit
-    PRIVATE
+    PUBLIC
         solver
 )

@@ -1,3 +1,3 @@
 cmake -S. -Bbuild
 cmake --build build
-ctest --test-dir build --output-on-failure
+ctest --test-dir build -R Solver --output-on-failure -V
