@@ -12,7 +12,9 @@ pub struct CircuitData {
     pub components: Vec<Component>,
     pub node_count: usize,
     pub ungrounded: Vec<usize>,
+    pub a_matrix_duplicates: DMatrix<f64>,
     pub a_matrix: DMatrix<f64>,
+    pub row_copies: Vec<usize>,
 }
 
 impl CircuitData {
@@ -24,11 +26,15 @@ impl CircuitData {
                 components: comps.to_vec(),
                 node_count: snap.node_count as usize,
                 ungrounded: Vec::new(),
+                a_matrix_duplicates: DMatrix::zeros(0, 0),
                 a_matrix: DMatrix::zeros(0, 0),
+                row_copies: Vec::new(),
             };
 
             circuit.ground_nodes();
             circuit.populate_a_matrix();
+
+            // (circuit.a_matrix, circuit.row_copies) = circuit.reduce_and_compute_row_copies();
 
             circuit
         }
@@ -116,6 +122,46 @@ impl CircuitData {
             .copy_from(&d_matrix);
 
         self.a_matrix = a_matrix;
+    }
+
+    fn reduce_and_compute_row_copies(&self) -> (DMatrix<f64>, Vec<usize>) {
+        let rows = self.a_matrix.nrows();
+        let cols = self.a_matrix.ncols();
+
+        // usize::MAX means that row is not a duplicate
+        let mut duplicates = vec![usize::MAX; rows];
+
+        // Detect duplicate rows
+        for i in 0..rows {
+            if duplicates[i] != usize::MAX {
+                continue;
+            }
+
+            for j in (i + 1)..rows {
+                if duplicates[j] != usize::MAX {
+                    continue;
+                }
+
+                let identical = (0..cols).all(|c| self.a_matrix[(i, c)] == self.a_matrix[(j, c)]);
+
+                if identical {
+                    duplicates[j] = i;
+                }
+            }
+        }
+
+        // Collect unique rows
+        let unique_rows: Vec<usize> = (0..rows).filter(|&r| duplicates[r] == usize::MAX).collect();
+
+        let mut reduced = DMatrix::zeros(unique_rows.len(), cols);
+
+        for (new_row, &old_row) in unique_rows.iter().enumerate() {
+            for c in 0..cols {
+                reduced[(new_row, c)] = self.a_matrix[(old_row, c)];
+            }
+        }
+
+        (reduced, duplicates)
     }
 
     fn compute_g_matrix(&self) -> DMatrix<f64> {
@@ -348,5 +394,136 @@ mod tests {
         let a = make_a_matrix();
         assert_eq!(a.nrows(), 4);
         assert_eq!(a.ncols(), 4);
+    }
+
+    /// Simple voltage divider: 9V source, two 100ohm resistors in series.
+    /// Nodes: 0 (ground), 1 (midpoint), 2 (top)
+    /// Expected: V(1) = 4.5V, V(2) = 9.0V
+    fn make_voltage_divider_snapshot() -> Snapshot {
+        let components = vec![
+            Component {
+                type_: 2,
+                voltage: 0.0,
+                current: 0.0,
+                property: 9.0,
+                anode: 2,
+                cathode: 0,
+            },
+            Component {
+                type_: 1,
+                voltage: 0.0,
+                current: 0.0,
+                property: 100.0,
+                anode: 2,
+                cathode: 1,
+            },
+            Component {
+                type_: 1,
+                voltage: 0.0,
+                current: 0.0,
+                property: 100.0,
+                anode: 1,
+                cathode: 0,
+            },
+        ];
+        let boxed = components.into_boxed_slice();
+        Snapshot {
+            component_count: boxed.len() as u32,
+            node_count: 3,
+            components: Box::into_raw(boxed) as *mut Component,
+        }
+    }
+
+    /// Single loop: 5V source, one 100Ω resistor.
+    /// Nodes: 0 (ground), 1 (top)
+    /// Expected: V(1) = 5.0V, branch current = 0.05A
+    fn make_single_loop_snapshot() -> Snapshot {
+        let components = vec![
+            Component {
+                type_: 2,
+                voltage: 0.0,
+                current: 0.0,
+                property: 5.0,
+                anode: 1,
+                cathode: 0,
+            },
+            Component {
+                type_: 1,
+                voltage: 0.0,
+                current: 0.0,
+                property: 100.0,
+                anode: 1,
+                cathode: 0,
+            },
+        ];
+        let boxed = components.into_boxed_slice();
+        Snapshot {
+            component_count: boxed.len() as u32,
+            node_count: 2,
+            components: Box::into_raw(boxed) as *mut Component,
+        }
+    }
+
+    /// Current source: 1A source pushing current from node 0 to node 1,
+    /// with a 10 ohm resistor across the nodes.
+    /// Nodes: 0 (ground), 1 (top)
+    /// Expected: V(1) = 10.0V  (V = I * R)
+    fn make_current_source_snapshot() -> Snapshot {
+        let components = vec![
+            Component {
+                type_: 3,
+                voltage: 0.0,
+                current: 0.0,
+                property: 1.0,
+                anode: 1,
+                cathode: 0,
+            },
+            Component {
+                type_: 1,
+                voltage: 0.0,
+                current: 0.0,
+                property: 10.0,
+                anode: 1,
+                cathode: 0,
+            },
+        ];
+        let boxed = components.into_boxed_slice();
+        Snapshot {
+            component_count: boxed.len() as u32,
+            node_count: 2,
+            components: Box::into_raw(boxed) as *mut Component,
+        }
+    }
+
+    #[test]
+    fn single_loop_voltage_is_correct() {
+        let sol = Solution::from_snapshot(make_single_loop_snapshot());
+        unsafe {
+            let voltages = std::slice::from_raw_parts(sol.voltages, sol.solution_count as usize);
+            assert_eq!(sol.solution_count, 1);
+            assert!((voltages[0] - 5.0).abs() < 1e-9);
+        }
+    }
+
+    #[test]
+    fn voltage_divider_midpoint_is_correct() {
+        let sol = Solution::from_snapshot(make_voltage_divider_snapshot());
+        unsafe {
+            let voltages = std::slice::from_raw_parts(sol.voltages, sol.solution_count as usize);
+            assert_eq!(sol.solution_count, 2);
+            // Node ordering follows ungrounded vec — nodes 1 and 2
+            assert!((voltages[0] - 4.5).abs() < 1e-9);
+            assert!((voltages[1] - 9.0).abs() < 1e-9);
+        }
+    }
+
+    #[test]
+    fn current_source_voltage_is_correct() {
+        let sol = Solution::from_snapshot(make_current_source_snapshot());
+        unsafe {
+            let voltages = std::slice::from_raw_parts(sol.voltages, sol.solution_count as usize);
+            assert_eq!(sol.solution_count, 1);
+            assert!((voltages[0] + 10.0).abs() < 1e-9);
+        }
     }
 }
